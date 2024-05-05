@@ -31,6 +31,13 @@ parser.add_argument('--color_specs', type=str, nargs='*', default=None,
 parser.add_argument('-bw', '--black_white', action='store_true', help='Check for both black and white colors.')
 parser.add_argument('-b', '--black', action='store_true', help='Check for black color. This is the default behavior.')
 parser.add_argument('-w', '--white', action='store_true', help='Check for white color.')
+parser.add_argument('--height', type=int, default=512, help='The desired height of the cropped images. Default is 512.')
+parser.add_argument('--width', type=int, default=512, help='The desired width of the cropped images. Default is 512.')
+
+
+# Use the desired dimensions
+
+
 
 # Parse the arguments
 args = parser.parse_args()
@@ -76,6 +83,35 @@ color_specs = []
 #     color_specs.append(('#000000', 70, 10))  # Black
 # if args.white or args.black_white:
 #     color_specs.append(('#FFFFFF', 80, 20))  # White
+
+desired_height = args.height
+desired_width = args.width
+
+# Calculate the number of rows and columns based on the desired dimensions
+num_rows = (large_img.height // desired_height) + 1
+num_cols = (large_img.width // desired_width) + 1
+
+# Calculate the total number of images that will be generated based on the desired dimensions
+total_images = num_rows * num_cols
+
+# Loop through rows and columns based on the desired dimensions
+for r in range((large_img.height // desired_height) + 1):
+    for c in range((large_img.width // desired_width) + 1):
+        # Calculate the left, upper, right, lower pixel coordinate based on the desired dimensions
+        left = c * desired_width
+        upper = r * desired_height
+        right = (c + 1) * desired_width
+        lower = (r + 1) * desired_height
+
+        # Crop the image based on the desired dimensions
+        cropped_img = large_img.crop((left, upper, right, lower))
+
+        # Save the cropped image
+        filename = f'cropped_{r+1}_{c+1}.jpg'
+        filepath = os.path.join(new_folder, filename)
+        cropped_img.save(filepath)
+
+print(f'{(large_img.height // desired_height) * (large_img.width // desired_width)} images have been created.')
 
 # Create a progress bar
 progress_bar = tqdm(total=total_images, desc="Processing images", ncols=100)
@@ -173,15 +209,14 @@ if not os.path.exists(new_folder):
 
 # Dictionary to store image statistics
 image_stats = {}
-# Delete images based on color
+# Delete images based on color 
 def delete_images(image_stats, new_folder, color='dark', threshold=50, percentage=10):
     for filename, mean in image_stats.items():
         filepath = os.path.join(new_folder, filename)
         if not os.path.exists(filepath):
-            print(f"File {filepath} does exist. Skipping...")
             continue
         else:
-            print(f"File {filepath} does not exist.")
+            print(f"File {filepath} created.")
         img = Image.open(os.path.join(new_folder, filename))
         if color == 'dark' and mean < threshold:
             os.remove(os.path.join(new_folder, filename))

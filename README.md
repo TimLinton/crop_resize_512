@@ -1,7 +1,3 @@
-# Image Cropper and Cleaner
-
-This Python script takes a large image file, crops it into 512x512 images, and then deletes the images that have a large amount of specified color space in a row. The cropped images are saved in a new folder. The idea is to remove images that have large blocks of color. When creating a style LORA, these can cause issues if you have black space or white space in your image scans.
-
 ## Usage
 
 The script can be run from the command line with the following arguments:
@@ -16,6 +12,8 @@ The script can be run from the command line with the following arguments:
 - `-bw`, `--black_white`: Check for both black and white colors.
 - `-b`, `--black`: Check for black color. This is the default behavior.
 - `-w`, `--white`: Check for white color.
+- `--height`: The desired height of the cropped images. Default is 512. Example: 768
+- `--width`: The desired width of the cropped images. Default is 512. Example: 720
 
 ## Example
 
@@ -24,15 +22,15 @@ Here is an example of how to run the script:
 Quick Run:
 
 ```bash
-python change_image512.py -i "./image_path.png" -d "./output/"
+python change_image512.py -id "./Images" -d "./output/"
 ```
 
-This will check do the default behavior which is black threshold of 60, blackk percentage of 10. No white check, no color check.
+This will check do the default behavior which is black threshold of 60, black percentage of 10. No white check, no color check.
 
 Advanced:
 
 ```bash
-python change_image512.py -id "/home/user/Pictures/Images" -d "/home/user/Pictures/CroppedImages" --color "#FFFFFF" "#FF0000" --color_threshold 80 --color_percentage 20 --color_specs "#FFFFFF,80,20" "#FF0000,70,10" -bw
+python change_image512.py -id "/home/user/Pictures/Images" -d "/home/user/Pictures/CroppedImages" --color "#FFFFFF" "#FF0000" --color_threshold 80 --color_percentage 20 --color_specs "#FFFFFF,80,20" "#FF0000,70,10" -bw --height 768 --width 720
 ```
 
-This will take the image at /home/user/Pictures/large_image.png, crop it into 512x512 images, save the cropped images in /home/user/Pictures/CroppedImages, and delete any images that have more than 20% of their pixels above a color threshold of 80 for the colors white and red.
+This will crop the images to 768x720, check for both black and white colors, and check for the colors "#FFFFFF" and "#FF0000" with the specified thresholds and percentages. ```
