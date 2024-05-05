@@ -209,7 +209,7 @@ if not os.path.exists(new_folder):
 
 # Dictionary to store image statistics
 image_stats = {}
-# Delete images based on color 
+# Delete images based on color testss
 def delete_images(image_stats, new_folder, color='dark', threshold=50, percentage=10):
     for filename, mean in image_stats.items():
         filepath = os.path.join(new_folder, filename)
