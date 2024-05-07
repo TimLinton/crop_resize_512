@@ -1,33 +1,37 @@
-# Description: This script takes a large image file and crops it into 512x512 images and then
-# deletes the images that have a large amount of dark space in a row.
+# Description: This script takes a large image file and crops it into a chosen size of images and then
+# deletes the images that have a large amount of dark space in a row using a chosen color or no color by default (black) .
 # and then saves the cropped images in a new folder.
-import glob
 import os
 import argparse
 from PIL import Image
-from PIL import ImageStat
-import numpy as np
-import colorsys
+
 from tqdm import tqdm
 import time
 from pathlib import Path
+import ast
+from functions import default_color, default_color_rgb, default_height, default_width, default_color_specs, chk_black, chk_white, chk_color
+from functions import  delete_images, count_images_in_folder
+
+
 Image.MAX_IMAGE_PIXELS = None
+
+
+
 
 # Create the parser
 parser = argparse.ArgumentParser(description='This script processes a large image, crops it into smaller images, and deletes images with a high percentage of a specified color.')
-
 # Add the arguments
 parser.add_argument('-i', '--image', type=str, help='The path to the large image file. Example: "/home/user/Pictures/image.png"')
 parser.add_argument('-id', '--input-dir', type=str, help='The path to the directory containing image files. Example: "/home/user/Pictures/Images"')
 
 parser.add_argument('-d', '--dest', type=str, required=True, help='The new folder to save the cropped images. Example: "/home/user/Pictures/CroppedImages"')
-parser.add_argument('--color', type=str, nargs='*', default=['#000000'],
+parser.add_argument('--color', type=str, default='#000000',
                     help='The colors to check for in hexadecimal or RGB format. Default is black (#000000). Example: "#FFFFFF" "#FF0000" or "255,255,255" "255,0,0"')
-parser.add_argument('--color_threshold', type=int, default=60,
+parser.add_argument('--color_threshold', type=int, default=70,
                     help='The color threshold. If a pixel\'s color is above this threshold, it is considered as a color pixel. Default is 70. Example: 80')
 parser.add_argument('--color_percentage', type=int, default=10,
                     help='The percentage of color pixels in a row for an image to be considered having too much of that color. Default is 10. Example: 20')
-parser.add_argument('--color_specs', type=str, nargs='*', default=None,
+parser.add_argument('--color_specs', type=ast.literal_eval, nargs='*', default=None,
                     help='The color specifications in the format "color,threshold,percentage". Example: "#FFFFFF,80,20" "#FF0000,70,10"')
 parser.add_argument('-bw', '--black_white', action='store_true', help='Check for both black and white colors.')
 parser.add_argument('-b', '--black', action='store_true', help='Check for black color. This is the default behavior.')
@@ -37,37 +41,72 @@ parser.add_argument('--width', type=int, default=512, help='The desired width of
 
 
 # Use the desired dimensions
-
+# load in all args
 
 
 # Parse the arguments
 args = parser.parse_args()
+if args.black or args.black_white:
+    chk_black = True
+    chk_white = False
+    chk_color = False
+if args.white:
+    chk_black = False
+    chk_white = True
+    chk_color = False
+if args.color:
+    chk_black = False
+    chk_white = False
+    chk_color = True
+
 color_specs = []
 
+color_threshold = args.color_threshold
+
 # Parse the color specifications
+if args.height:
+    desired_height = args.height
+if args.width:
+    desired_width = args.width
+if args.color_specs:
+    for spec in args.color_specs:
+        color, threshold, percentage = spec.split(',')
+        color_specs.append((color, int(threshold), int(percentage)))
+
+# Create a new folder to save the cropped images
+if not os.path.exists(args.dest):
+    os.makedirs(args.dest)
+
+# Dictionary to store image statistics
 
 
 if args.input_dir:
     # Get a list of all the image files in the directory
     image_files = [f for f in os.listdir(args.input_dir) if Path(f).suffix in ['.jpg', '.jpeg', '.png'] and os.path.isfile(os.path.join(args.input_dir, f))]
-    
+
+    # Define the path to the new folder
+    new_folder = args.dest
+
     # Process each image file
     for image_file in image_files:
+        # check how many files are in the folder only 1 time, do not check again
+        if image_files.index(image_file) == 0:
+            images_in_folder = count_images_in_folder(args.input_dir)
+            
         original_filename = os.path.splitext(os.path.basename(image_file))[0]
-
-        # Open the image file
         large_img = Image.open(os.path.join(args.input_dir, image_file))
-
-        # Define the path to the large image file and the new folder
         large_img_path = os.path.join(args.input_dir, image_file)
-        new_folder = args.dest
-        num_rows = (large_img.height // 512) + 1
-        num_cols = (large_img.width // 512) + 1
+        directory_path = os.path.dirname(large_img_path)
+
+
+        num_rows = (large_img.height // desired_height) + 1
+        num_cols = (large_img.width // desired_width) + 1
 
         # Calculate the total number of images that will be generated
         total_images = num_rows * num_cols
-        # Create a progress bar
-        progress_bar = tqdm(total=total_images, desc="Processing images", ncols=100)
+
+
+
 
 else:
     large_img = Image.open(args.image)
@@ -84,29 +123,15 @@ if args.color and args.color_threshold and args.color_percentage:
     color_specs.append((args.color, args.color_threshold, args.color_percentage))
 
 # Define the dark threshold
-dark_threshold = 60
-white_threshold = None if not args.white and not args.black_white else 700
+# dark_threshold = 60
+# white_threshold = None if not args.white and not args.black_white else 700
 
-# Define the percentage of dark pixels in a row for an image to be considered dark
-dark_percentage = 10
-white_percentage = None if not args.white and not args.black_white else 30
+# # Define the percentage of dark pixels in a row for an image to be considered dark
+# dark_percentage = 10
+# white_percentage = None if not args.white and not args.black_white else 30
 
-# Parse the color specifications
 
-# if args.black or args.black_white:
-#     color_specs.append(('#000000', 70, 10))  # Black
-# if args.white or args.black_white:
-#     color_specs.append(('#FFFFFF', 80, 20))  # White
 
-desired_height = args.height
-desired_width = args.width
-
-# Calculate the number of rows and columns based on the desired dimensions
-num_rows = (large_img.height // desired_height) + 1
-num_cols = (large_img.width // desired_width) + 1
-
-# Calculate the total number of images that will be generated based on the desired dimensions
-total_images = num_rows * num_cols
 
 # Loop through rows and columns based on the desired dimensions
 for r in range((large_img.height // desired_height) + 1):
@@ -125,6 +150,10 @@ for r in range((large_img.height // desired_height) + 1):
         filepath = os.path.join(new_folder, filename)
         cropped_img.save(filepath)
 
+        # Delete images with a large amount of black or white space
+
+
+        # delete_images(new_folder)  # White
 print(f'{(large_img.height // desired_height) * (large_img.width // desired_width)} images have been created.')
 
 # Create a progress bar
@@ -138,14 +167,18 @@ print(f"Color Percentage: {args.color_percentage}")
 print(f"Color Specs: {args.color_specs}")
 print(f"Black White: {args.black_white}")
 
-# Calculate the number of rows and columns
-num_rows = (large_img.height // 512) + 1
-num_cols = (large_img.width // 512) + 1
+# Calculate the number of rows and columns based on the desired dimensions.
 
-# Calculate the total number of images that will be generated
+num_rows = (large_img.height // desired_height) + 1
+num_cols = (large_img.width // desired_width) + 1
+
+# Calculate the total number of images that will be generated based on the desired dimensions
 total_images = num_rows * num_cols
 
-print(f'Total images to be generated before deletion: {total_images}')
+# Calculate the total number of images that will be generated
+total_images = num_rows * num_cols * images_in_folder
+
+print(f'Estimated total images to be generated before deletion: {total_images}')
 
 # Initialize a list to store the processing times of the first two images
 processing_times = []
@@ -162,72 +195,12 @@ color_percentage = args.color_percentage
 
 
 
-# Create a progress bar
-progress_bar = tqdm(total=total_images, desc="Processing images", ncols=100)
-
-
-def get_color_space_percentage(image, color_threshold, percentage):
-    # Calculate the percentage of pixels in each row of the image that meet the color threshold
-    width, height = image.size
-
-    for y in range(height):
-        row = [image.getpixel((x, y)) for x in range(width)]
-        total_pixels = len(row)
-        matching_pixels = 0
-
-        for pixel in row:
-            if isinstance(pixel, int):
-                # Grayscale image
-                if pixel > color_threshold:
-                    matching_pixels += 1
-            else:
-                # RGB image
-                if sum(pixel) > color_threshold:
-                    matching_pixels += 1
-
-        matching_percentage = (matching_pixels / total_pixels) * 100
-        if matching_percentage > percentage:
-            print(f"Image has {matching_percentage}% matching pixels.")
-            return True
-
-    return False
-
-# Function to calculate image statistics
-def calculate_image_stats(img):
-    stat = ImageStat.Stat(img)
-    return stat.mean[0]
-
 
 # Create a new folder to save the cropped images
 if not os.path.exists(new_folder):
     os.makedirs(new_folder)
 
 # Dictionary to store image statistics
-image_stats = {}
-# Delete images based on color testss
-def delete_images(image_stats, new_folder, color='dark', threshold=50, percentage=10):
-    for filename, mean in image_stats.items():
-        filepath = os.path.join(new_folder, filename)
-        if not os.path.exists(filepath):
-            continue
-        else:
-            print(f"File {filepath} created.")
-        img = Image.open(os.path.join(new_folder, filename))
-        if color == 'dark' and mean < threshold:
-            os.remove(os.path.join(new_folder, filename))
-            print(f'Deleted {filename} due to high darkness.')
-        elif color == 'white' and mean > threshold:
-            os.remove(os.path.join(new_folder, filename))
-            print(f'Deleted {filename} due to high whiteness.')
-        elif color.startswith('#'):
-            r, g, b = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
-            color_rgb = np.array([r, g, b])
-            img_rgb = np.array(img)
-            diff = np.sqrt(np.sum((img_rgb - color_rgb)**2, axis=2))
-            color_percentage = np.sum(diff < threshold) / diff.size * 100
-            if color_percentage > percentage:
-                os.remove(os.path.join(new_folder, filename))
-                print(f'Deleted {filename} due to high {color} color.')
 
 
 # Parse the color specifications
@@ -241,39 +214,58 @@ if args.input_dir:
     image_files = [f for f in os.listdir(args.input_dir) if os.path.splitext(f)[1] in ['.jpg', '.jpeg', '.png']]
 
     # Process each image file
-    for image_file in image_files:
+for image_file in image_files:
+        # check how many files are in the folder only 1 time, do not check again
+        if image_files.index(image_file) == 0:
+            images_in_folder = count_images_in_folder(args.input_dir)
+            
+        original_filename = os.path.splitext(os.path.basename(image_file))[0]
+        large_img = Image.open(os.path.join(args.input_dir, image_file))
+        large_img_path = os.path.join(args.input_dir, image_file)
+        directory_path = os.path.dirname(large_img_path)
+
+        # Print the image_file variable for debugging
+        print(f"Processing image file: {image_file}")
+
         # Open the image file
         large_img = Image.open(os.path.join(args.input_dir, image_file))
+
+        # Extract the base name of the image file
+        base_name = os.path.basename(image_file)
+        print(f"Base name: {base_name}")
+
+        # Split the base name into name and extension
+        name, extension = os.path.splitext(base_name)
+        print(f"Name: {name}, Extension: {extension}")
 
         # Loop through rows and columns
         height = large_img.height
         width = large_img.width
-        original_filename = os.path.splitext(os.path.basename(image_file))[0]
-        for r in range((height // 512) + 1):
-            for c in range((width // 512) + 1):
+        for r in range((height // desired_height) + 1):
+            for c in range((width // desired_width) + 1):
                 # Calculate the left, upper, right, lower pixel coordinate
-                left = c * 512
-                upper = r * 512
-                right = (c + 1) * 512
-                lower = (r + 1) * 512
+                left = c * desired_width
+                upper = r * desired_height
+                right = (c + 1) * desired_width
+                lower = (r + 1) * desired_height
 
                 # Crop the image
                 cropped_img = large_img.crop((left, upper, right, lower))
 
                 # Save the cropped image
-                filename = f'{original_filename}_cropped_{r+1}_{c+1}.jpg'
-                filepath = os.path.join(args.dest, filename)
-                cropped_img.save(filepath)
+            filename = f'{original_filename}_cropped_{r+1}_{c+1}.jpg'
+            filepath = os.path.join(args.dest, filename)
+            cropped_img.save(filepath)
+            # progress_bar.update(1)
+
 
 # Calculate the total number of images to process
-total_images = len(os.listdir(new_folder))
+total_images = len(os.listdir(args.input_dir))
 
-# Call delete_images() function after all images have been processed
-for color_spec in color_specs:
-    color, threshold, percentage = color_spec
-    delete_images(image_stats, new_folder, color=color, threshold=threshold, percentage=percentage)
+delete_images(new_folder)  # Black
+
 
 progress_bar.close()
 
-print(f'{(height // 512) * (width // 512)} images have been created.')
+print(f'{(height // large_img.height) * (width //  large_img.width)} images have been created.')
 print("Script finished executing.")
